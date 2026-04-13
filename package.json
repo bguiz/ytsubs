@@ -25,7 +25,9 @@
   "author": "bguiz",
   "type": "module",
   "scripts": {
-    "test": "node --test yt-subs.test.js",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "node --test yt-subs.unit.test.js",
+    "test:e2e": "node --test yt-subs.e2e.test.js",
     "list-files": "npm pack && tar -xvzf *.tgz && rm -rf package *.tgz"
   },
   "dependencies": {
