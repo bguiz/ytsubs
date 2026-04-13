@@ -22,7 +22,7 @@
   "type": "module",
   "main": "yt-script.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test yt-script.test.js"
   },
   "dependencies": {
     "youtube-transcript-plus": "2.0.0"

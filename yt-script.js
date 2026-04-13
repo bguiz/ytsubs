@@ -2,6 +2,7 @@
 
 import { homedir as osHomeDir } from 'node:os';
 import { resolve as pathResolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
     fetchTranscript,
@@ -16,17 +17,24 @@ import {
 
 async function youtubeScript({
     videoUrl,
+    _deps = {},
 }) {
+    const {
+        fetchTranscript: _fetchTranscript = fetchTranscript,
+        toPlainText: _toPlainText = toPlainText,
+        FsCache: _FsCache = FsCache,
+    } = _deps;
+
     const videoId = extractVideoId(videoUrl);
 
-    const ytScriptFsCache = new FsCache(
+    const ytScriptFsCache = new _FsCache(
         pathResolve(osHomeDir(), '.yt-script-cache'),
         86400e3, // 1 days
     );
 
     let rawResult;
     try {
-        rawResult = await fetchTranscript(
+        rawResult = await _fetchTranscript(
             videoId,
             {
                 lang: 'en',
@@ -56,7 +64,7 @@ async function youtubeScript({
 
     const { title, description, ...metadata } = rawResult.videoDetails;
 
-    const textTranscript = toPlainText(rawResult.segments);
+    const textTranscript = _toPlainText(rawResult.segments);
     return {
         title,
         metadata,
@@ -112,8 +120,12 @@ async function main() {
     process.exit(0);
 }
 
-main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    main();
+}
 
 export {
-    youtubeScript
+    youtubeScript,
+    extractVideoId,
+    printResult,
 };
