@@ -19,11 +19,12 @@
   },
   "license": "MIT",
   "author": "bguiz",
-  "type": "esm",
+  "type": "module",
   "main": "yt-script.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "youtube-transcript-plus": "2.0.0"
   }
 }
