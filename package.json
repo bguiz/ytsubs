@@ -1,9 +1,9 @@
 {
-  "name": "yt-subs",
+  "name": "ytsubs",
   "version": "0.0.1",
   "description": "downloads transcript files from youtube videos",
   "bin": {
-    "yt-cli": "./yt-subs.js"
+    "ytsubs": "yt-subs.js"
   },
   "main": "yt-subs-sdk.js",
   "files": [

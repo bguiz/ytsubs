@@ -20,7 +20,7 @@ Tip: This skill is best used when combined with other skills, e.g. summaries.
 ## When to apply
 
 - "pls download the transcript of https://youtube.com/watch?v=dQw4w9WgXcQ"
-- "extract subs from youtu.be/dQw4w9WgXcQ and save to yt-subs.md"
+- "extract subs from youtu.be/dQw4w9WgXcQ and save to video-subs.md"
 - "for youtube video dQw4w9WgXcQ download all text"
 
 ## Activity
@@ -28,7 +28,7 @@ Tip: This skill is best used when combined with other skills, e.g. summaries.
 Run the following command:
 
 ```
-npx -y yt-subs "(... URL or ID)"
+npx -y ytsubs "(... URL or ID)"
 ```
 
 Be sure to place quotes around the video URL or ID, in case of special characters.
@@ -39,7 +39,7 @@ This utility will output text containing the following data from the video:
 - description
 - text (full transcript based on subtitles)
 
-If unspecified, save the output to file: `yt-subs.md`
+If unspecified, save the output to file: `video-subs.md`
 
 Sample output: `./references/sample-output.md`
 
