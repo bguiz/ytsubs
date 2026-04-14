@@ -3,16 +3,16 @@ import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { describe, it } from 'node:test';
 
-import { youtubeScript } from './yt-subs-sdk.js';
+import ytSubsCli from './yt-subs-cli.js';
 
 const execAsync = promisify(exec);
 
 const VIDEO_URL = 'https://www.youtube.com/watch?v=wd9WJ8uazVg&list=PLjyCRcs63y81JbTc8bqzkcgRWzA7_H23B&index=1';
 const VIDEO_ID = 'wd9WJ8uazVg';
 
-describe('youtubeScript e2e (programmatic)', () => {
+describe('ytsubs e2e programmatic invocation', () => {
     it('fetches transcript for a known video', { timeout: 30000 }, async () => {
-        const result = await youtubeScript({ videoUrl: VIDEO_URL });
+        const result = await ytSubsCli(VIDEO_URL);
 
         assert.ok(!result.err, `unexpected error: ${result.err}`);
 
@@ -29,14 +29,14 @@ describe('youtubeScript e2e (programmatic)', () => {
     });
 });
 
-describe('yt-cli e2e (CLI invocation)', () => {
+describe('ytsubs e2e CLI invocation', () => {
     it('prints markdown transcript output when invoked on the command line', { timeout: 30000 }, async () => {
         let stdout;
         try {
-            ({ stdout } = await execAsync(`yt-cli "${VIDEO_URL}"`));
+            ({ stdout } = await execAsync(`ytsubs "${VIDEO_URL}"`));
         } catch (err) {
             if (err.code === 127) {
-                assert.fail('yt-cli not found on PATH — run in the project directory: npm link');
+                assert.fail('ytsubs not found on PATH — run in the project directory: npm link');
             }
             throw err;
         }

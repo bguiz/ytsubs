@@ -3,11 +3,11 @@
   "version": "0.0.1",
   "description": "downloads transcript files from youtube videos",
   "bin": {
-    "ytsubs": "yt-subs.js"
+    "ytsubs": "yt-subs-cli.js"
   },
   "main": "yt-subs-sdk.js",
   "files": [
-    "/yt-subs.js",
+    "/yt-subs-cli.js",
     "/yt-subs-sdk.js"
   ],
   "keywords": [
