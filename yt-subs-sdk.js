@@ -98,8 +98,7 @@ async function youtubeScript({
 
 function extractVideoId(videoUrl) {
     if (!videoUrl || typeof videoUrl !== 'string') {
-        console.error('video URL is missing');
-        process.exit(1);
+        throw new Error('video URL is missing');
     }
     if (videoUrl.includes('youtube.com')) {
         const match = videoUrl.match(/v=([a-zA-Z0-9_-]{11})/);
@@ -115,8 +114,7 @@ function extractVideoId(videoUrl) {
         return videoUrl;
     }
 
-    console.error('video URL is invalid:', videoUrl);
-    process.exit(1);
+    throw new Error(`video URL is invalid: ${videoUrl}`);
 }
 
 function outputTextOnly(result) {

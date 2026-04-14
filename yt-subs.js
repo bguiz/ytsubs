@@ -14,19 +14,21 @@ async function ytSubsCli(input) {
         videoUrl,
     });
     if (result.err) {
-        console.error(result.err);
-        process.exit(2);
-    };
+        throw new Error(result.err);
+    }
     printResult({
         videoUrl,
         ...result,
     });
-    process.exit(0);
+    return result;
 }
 
 const filePath = fileURLToPath(import.meta.url);
 if (fsRealPathSync(process.argv[1]) === filePath) {
-    ytSubsCli();
+    ytSubsCli().catch((err) => {
+        console.error(err.message);
+        process.exitCode = 1;
+    });
 }
 
 export default ytSubsCli;
