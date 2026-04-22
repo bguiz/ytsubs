@@ -2,16 +2,27 @@
   "name": "ytsubs",
   "version": "0.2.0",
   "description": "downloads transcript files from youtube videos",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "bin": {
     "ytsubs": "yt-subs-cli.js",
     "ytsubs-mcp": "yt-subs-mcp.js"
   },
   "main": "yt-subs-sdk.js",
+  "exports": {
+    ".": "./yt-subs-sdk.js",
+    "./cli": "./yt-subs-cli.js",
+    "./mcp": "./yt-subs-mcp.js"
+  },
   "files": [
     "/yt-subs-sdk.js",
     "/yt-subs-cli.js",
     "/yt-subs-mcp.js"
   ],
+  "license": "MIT",
+  "author": "bguiz",
   "keywords": [
     "youtube",
     "subtitles",
@@ -26,9 +37,6 @@
     "type": "git",
     "url": "git+https://github.com/bguiz/yt-subs.git"
   },
-  "license": "MIT",
-  "author": "bguiz",
-  "type": "module",
   "scripts": {
     "cli": "node yt-subs-cli.js",
     "mcp:stdio": "node yt-subs-mcp.js stdio",

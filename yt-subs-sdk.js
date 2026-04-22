@@ -15,30 +15,39 @@ import {
 } from 'youtube-transcript-plus';
 
 /**
+ * @typedef {object} ExtractOptions
+ * @property {boolean} [cache] - Enable filesystem cache for transcripts; default true.
+ * @property {boolean} [retry] - Enable automatic retries on transient failure; default true.
+ * @property {string} [language] - Two-letter BCP-47 language code; default 'en'.
+ * @property {'text'|'srt'|'vtt'} [textType] - Transcript output format; default 'text'.
+ * @property {number} [timeout] - Abort after this many milliseconds; no timeout by default.
+ */
+
+/**
+ * @typedef {object} ExtractResult
+ * @property {string} videoUrl - The YouTube URL or video ID that was passed in.
+ * @property {string} title - Video title.
+ * @property {object} metadata - Miscellaneous video metadata (thumbnails, author, etc.).
+ * @property {string} description - Video description.
+ * @property {string} text - Transcript content.
+ */
+
+/**
+ * @typedef {object} ExtractError
+ * @property {string} err - Error message describing what went wrong.
+ */
+
+/**
  * Extracts the transcript and metadata from a Youtube video.
  * Returns `{ err }` on failure rather than throwing, so callers must check
  * `result.err` *before* accessing other fields.
  * @param {object} params - Input parameters.
  * @param {string} params.videoUrl - Youtube URL, schemeless URL, or bare 11-character video ID.
- * @param {object} [params.options] - Extraction options.
- * - boolean noCache - Disable the filesystem cache; default: false.
- * - boolean noRetry - Disable automatic retries; default: false.
- * - string language - 2-letter language code (BCP-47) for the transcript. default: 'en'.
- * - 'text'|'srt'|'vtt' - textType - Transcript format; default 'text'.
- * @param {object} [params._deps] - Dependency overrides used in tests.
- * @returns {Promise<{videoUrl: string, title: string, description: string, metadata: object, text: string}|{err: string}>}
- *   Resolves to the extraction result on success, or `{ err }` on failure.
+ * @param {ExtractOptions} [params.options] - Extraction options.
+ * @param {object} [params._deps] - For unit testing only — do not pass in production code. Internal.
+ * @returns {Promise<ExtractResult|ExtractError>} Resolves to either a result object or error object.
  */
-async function extractFromVideo({
-  videoUrl,
-  options = {
-    noCache: false,
-    noRetry: false,
-    language: 'en',
-    textType: 'text',
-  },
-  _deps = {},
-}) {
+async function extractFromVideo({ videoUrl, options = {}, _deps = {} }) {
   const {
     fetchTranscript: _fetchTranscript = fetchTranscript,
     toPlainText: _toPlainText = toPlainText,
@@ -55,7 +64,7 @@ async function extractFromVideo({
   }
 
   let ytScriptFsCache;
-  if (!options.noCache) {
+  if (options.cache !== false) {
     ytScriptFsCache = new _FsCache(
       pathResolve(osHomeDir(), '.yt-subs-cache'),
       86400e3, // 1 day
@@ -63,23 +72,44 @@ async function extractFromVideo({
   }
   let retries = 0;
   let retryDelay = 0;
-  if (!options.noRetry) {
-    retries = 5;
-    retryDelay = 500;
+  if (options.retry !== false) {
+    // retry up to 3 times, at 15s, 30s, 60s
+    retries = 3;
+    retryDelay = 15e3;
   }
 
+  const controller = options.timeout != null ? new AbortController() : null;
+  let timeoutId;
   let rawResult;
   let err;
+
   try {
-    rawResult = await _fetchTranscript(videoId, {
+    const fetchPromise = _fetchTranscript(videoId, {
       lang: options.language || 'en',
       cache: ytScriptFsCache,
       videoDetails: true,
       retries,
       retryDelay,
+      ...(controller ? { signal: controller.signal } : {}),
     });
+
+    if (controller) {
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          controller.abort();
+          const e = new Error(`Timed out after ${options.timeout}ms`);
+          e.name = 'AbortError';
+          reject(e);
+        }, options.timeout);
+      });
+      rawResult = await Promise.race([fetchPromise, timeoutPromise]);
+    } else {
+      rawResult = await fetchPromise;
+    }
   } catch (error) {
-    if (error instanceof YoutubeTranscriptVideoUnavailableError) {
+    if (error.name === 'AbortError') {
+      err = error.message;
+    } else if (error instanceof YoutubeTranscriptVideoUnavailableError) {
       err = `Video is unavailable: ${error.videoId}`;
     } else if (error instanceof YoutubeTranscriptDisabledError) {
       err = `Transcripts are disabled: ${error.videoId}`;
@@ -92,7 +122,10 @@ async function extractFromVideo({
     } else {
       err = `An unexpected error occurred: ${error.message}`;
     }
+  } finally {
+    clearTimeout(timeoutId);
   }
+
   if (err) {
     return { err };
   }

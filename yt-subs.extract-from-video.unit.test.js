@@ -125,7 +125,7 @@ describe('extractFromVideo', () => {
     assert.strictEqual(result.text, fakeTranscriptVTT);
   });
 
-  it('with noCache: true, skips FsCache construction and passes cache: undefined', async () => {
+  it('with cache: false, skips FsCache construction and passes cache: undefined', async () => {
     let fsCacheConstructed = false;
     let capturedFetchOpts;
     const deps = {
@@ -142,14 +142,14 @@ describe('extractFromVideo', () => {
     };
     await extractFromVideo({
       videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-      options: { noCache: true },
+      options: { cache: false },
       _deps: deps,
     });
     assert.strictEqual(fsCacheConstructed, false);
     assert.strictEqual(capturedFetchOpts.cache, undefined);
   });
 
-  it('without noCache, creates an FsCache and passes it to fetchTranscript', async () => {
+  it('without cache option, creates an FsCache and passes it to fetchTranscript', async () => {
     let fsCacheConstructed = false;
     let capturedFetchOpts;
     const deps = {
@@ -172,7 +172,7 @@ describe('extractFromVideo', () => {
     assert.ok(capturedFetchOpts.cache !== undefined);
   });
 
-  it('with noRetry: true, passes retries 0 and retryDelay 0 to fetchTranscript', async () => {
+  it('with retry: false, passes retries 0 and retryDelay 0 to fetchTranscript', async () => {
     let capturedFetchOpts;
     const deps = {
       ...fakeDepsBase,
@@ -184,14 +184,14 @@ describe('extractFromVideo', () => {
     };
     await extractFromVideo({
       videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-      options: { noRetry: true },
+      options: { retry: false },
       _deps: deps,
     });
     assert.strictEqual(capturedFetchOpts.retries, 0);
     assert.strictEqual(capturedFetchOpts.retryDelay, 0);
   });
 
-  it('without noRetry, passes retries 5 and retryDelay 500 to fetchTranscript', async () => {
+  it('without retry option, passes retries 3 and retryDelay 15000 to fetchTranscript', async () => {
     let capturedFetchOpts;
     const deps = {
       ...fakeDepsBase,
@@ -205,8 +205,8 @@ describe('extractFromVideo', () => {
       videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       _deps: deps,
     });
-    assert.strictEqual(capturedFetchOpts.retries, 5);
-    assert.strictEqual(capturedFetchOpts.retryDelay, 500);
+    assert.strictEqual(capturedFetchOpts.retries, 3);
+    assert.strictEqual(capturedFetchOpts.retryDelay, 15e3);
   });
 
   it('with language option, passes the correct lang to fetchTranscript', async () => {
@@ -242,6 +242,20 @@ describe('extractFromVideo', () => {
       _deps: deps,
     });
     assert.strictEqual(capturedFetchOpts.lang, 'en');
+  });
+
+  it('with timeout option, returns { err } when fetchTranscript never resolves', async () => {
+    const deps = {
+      ...fakeDepsBase,
+      fetchTranscript: () => new Promise(() => {}),
+      toPlainText: () => fakeTranscriptText,
+    };
+    const result = await extractFromVideo({
+      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      options: { timeout: 100 },
+      _deps: deps,
+    });
+    assert.match(result.err, /Timed out after 100ms/);
   });
 
   describe('error cases', () => {

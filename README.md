@@ -53,10 +53,11 @@ Optionally, create an options object to override defaults:
 
 ```js
 const options = {
-    noCache: true, // default: false - saves in `.yt-subs-cache` under home
-    noRetry: true, // default: false - if first attempt fails, retry with backoff
-    language: 'es', // default: 'en' - can be any 2-letter language code
+    cache: false,    // default: true  - caches responses in `.yt-subs-cache` under home directory
+    retry: false,    // default: true  - retries with exponential backoff on transient failure
+    language: 'es',  // default: 'en'  - any two-letter BCP-47 language code
     textType: 'srt', // default: 'text' - can be 'text', 'srt', or 'vtt'
+    timeout: 30e3,  // default: none  - abort after this many milliseconds
 };
 ```
 
@@ -266,7 +267,7 @@ Base set up:
 git clone git@github.com:${YOUR_GITHUB_USERNAME}/ytsubs.git
 cd ytsubs
 npm install
-npm link # needed to test `npx` equivalent
+npm link # needed to test `npx` equivalent, used in e2e tests
 ytsubs # test that npm link is active
 ```
 
