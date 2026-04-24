@@ -26,6 +26,7 @@ Tip: This skill is best used when combined with other skills, e.g. summaries.
 ## Common mistakes to avoid
 
 - Wrong: Use a different tool (e.g. `yt-dlp`) --> Correct: Use `ytsubs` as described in this skill.
+- Wrong: If the tool fails, do not attempt an alternative method --> Correct: Display the full error message verbatim, then exit.
 
 ## Activities
 

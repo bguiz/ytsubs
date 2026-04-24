@@ -6,12 +6,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 
-import pkg from './package.json' with { type: 'json' };
+import pkg from '../package.json' with { type: 'json' };
 import { extractFromVideo } from './yt-subs-sdk.js';
 
-const transportArg = process.argv[2] ?? 'stdio';
-
-const server = new McpServer({
+export const server = new McpServer({
   name: 'ytsubs-mcp',
   version: pkg.version,
 });
@@ -26,6 +24,13 @@ server.registerTool(
         .boolean()
         .default(true)
         .meta({ description: 'When false, includes title, description, and metadata' }),
+      language: z.string().default('en').meta({ description: 'Two-letter BCP-47 language code, e.g. "en", "fr"' }),
+      textType: z.enum(['text', 'srt', 'vtt']).default('text').meta({ description: 'Transcript output format' }),
+      cache: z.boolean().default(true).meta({ description: 'Enable filesystem cache; set false to disable' }),
+      retry: z
+        .boolean()
+        .default(true)
+        .meta({ description: 'Enable automatic retries on transient failure; set false to disable' }),
     }),
     annotations: {
       readOnlyHint: true,
@@ -34,9 +39,10 @@ server.registerTool(
       openWorldHint: true,
     },
   },
-  async ({ videoUrl, onlyText }) => {
+  async ({ videoUrl, onlyText, language, textType, cache, retry }) => {
     const result = await extractFromVideo({
       videoUrl,
+      options: { language, textType, cache, retry },
     });
     if (result.err) {
       return {
@@ -68,7 +74,7 @@ server.registerTool(
  * (any client using `StdioClientTransport`).
  * @returns {Promise<void>}
  */
-async function runWithStdio() {
+export async function runWithStdio() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
