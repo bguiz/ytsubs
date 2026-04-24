@@ -3,6 +3,6 @@ import jsdoc from 'eslint-plugin-jsdoc';
 export default [
   {
     ...jsdoc.configs['flat/recommended'],
-    files: ['yt-subs-*.js'],
+    files: ['src/yt-subs-*.js'],
   },
 ];
