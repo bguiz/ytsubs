@@ -1,0 +1,419 @@
+openapi: "3.1.0"
+
+info:
+  title: ytsubs Server
+  description: |
+    HTTP API for the ytsubs server.
+
+    Exposes two surfaces on the same port:
+
+    - **REST API** — conventional HTTP endpoints (`GET /transcript`, `GET /health`)
+    - **MCP API** — [Model Context Protocol](https://modelcontextprotocol.io/specification/2025-11-25)
+      (JSON-RPC 2.0 over HTTP) at `POST /mcp`
+
+    Configure the server address with the `YTSUBS_HOST` and `YTSUBS_PORT`
+    environment variables (defaults: `127.0.0.1` and `3456`).
+  version: "0.2.0"
+  license:
+    name: MIT
+  contact:
+    url: https://github.com/bguiz/yt-subs
+
+servers:
+  - url: http://127.0.0.1:3456
+    description: Local server (configure with YTSUBS_HOST / YTSUBS_PORT)
+
+paths:
+  /transcript:
+    get:
+      operationId: getTranscript
+      summary: Extract YouTube transcript
+      description: |
+        Extracts the transcript and optionally full metadata from a YouTube video.
+
+        All parameters are passed as query string values. Boolean parameters accept
+        the string `"true"` or `"false"`; any value other than `"false"` is treated
+        as `true`.
+      parameters:
+        - name: videoUrl
+          in: query
+          required: true
+          description: YouTube URL or bare 11-character video ID
+          schema:
+            type: string
+            minLength: 11
+          examples:
+            fullUrl:
+              value: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            shortUrl:
+              value: "youtu.be/dQw4w9WgXcQ"
+            videoId:
+              value: "dQw4w9WgXcQ"
+        - name: language
+          in: query
+          required: false
+          description: Two-letter BCP-47 language code for the transcript
+          schema:
+            type: string
+            default: "en"
+          examples:
+            english:
+              value: "en"
+            french:
+              value: "fr"
+        - name: textType
+          in: query
+          required: false
+          description: Transcript output format
+          schema:
+            type: string
+            enum: [text, srt, vtt]
+            default: "text"
+        - name: cache
+          in: query
+          required: false
+          description: "Enable filesystem cache for transcripts (pass \"false\" to disable)"
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "true"
+        - name: retry
+          in: query
+          required: false
+          description: "Enable automatic retries on transient failure (pass \"false\" to disable)"
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "true"
+        - name: onlyText
+          in: query
+          required: false
+          description: "When \"true\", the response contains only { text } — no title or metadata"
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "false"
+      responses:
+        "200":
+          description: Transcript extracted successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/TranscriptResponse"
+                  - $ref: "#/components/schemas/TextOnlyTranscriptResponse"
+              examples:
+                fullResult:
+                  summary: Full result (onlyText=false)
+                  value:
+                    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                    title: "Rick Astley - Never Gonna Give You Up"
+                    description: "Official music video..."
+                    metadata: {}
+                    text: "Never gonna give you up..."
+                textOnly:
+                  summary: Text only (onlyText=true)
+                  value:
+                    text: "Never gonna give you up..."
+        "400":
+          description: Invalid or missing videoUrl / invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "video URL is invalid: notavalidurl"
+        "404":
+          description: Video unavailable, transcripts disabled, or no transcript available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Video is unavailable: dQw4w9WgXcQ"
+        "422":
+          description: Invalid or unavailable language code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Invalid language code: xx"
+        "503":
+          description: Unexpected upstream error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "An unexpected error occurred: ..."
+        "504":
+          description: Request timed out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Timed out after 5000ms"
+
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check
+      description: Returns server status and version. Always returns 200 while the server is running.
+      responses:
+        "200":
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: "ok"
+                version: "0.2.0"
+
+  /mcp:
+    post:
+      operationId: mcpRequest
+      summary: MCP JSON-RPC 2.0 endpoint
+      description: |
+        Accepts MCP protocol messages as JSON-RPC 2.0 requests.
+
+        Supported methods:
+        - `tools/list` — enumerate available tools
+        - `tools/call` — invoke the `youtube-transcript-extract` tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/ToolsListRequest"
+                - $ref: "#/components/schemas/ToolsCallRequest"
+            examples:
+              listTools:
+                summary: List available tools
+                value:
+                  jsonrpc: "2.0"
+                  id: 1
+                  method: tools/list
+                  params: {}
+              callToolTextOnly:
+                summary: Extract plain-text transcript
+                value:
+                  jsonrpc: "2.0"
+                  id: 2
+                  method: tools/call
+                  params:
+                    name: youtube-transcript-extract
+                    arguments:
+                      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                      onlyText: true
+              callToolFullSrt:
+                summary: Extract SRT transcript with full metadata
+                value:
+                  jsonrpc: "2.0"
+                  id: 3
+                  method: tools/call
+                  params:
+                    name: youtube-transcript-extract
+                    arguments:
+                      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                      onlyText: false
+                      language: "en"
+                      textType: "srt"
+                      cache: true
+                      retry: true
+      responses:
+        "200":
+          description: JSON-RPC 2.0 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/McpResponse"
+              examples:
+                toolsListResult:
+                  summary: tools/list response
+                  value:
+                    jsonrpc: "2.0"
+                    id: 1
+                    result:
+                      tools:
+                        - name: youtube-transcript-extract
+                          description: "Extracts transcript/ captions/ subtitles from youtube videos (plus metadata)"
+                          inputSchema:
+                            type: object
+                            required: [videoUrl]
+                toolCallSuccess:
+                  summary: tools/call success
+                  value:
+                    jsonrpc: "2.0"
+                    id: 2
+                    result:
+                      content:
+                        - type: text
+                          text: "Never gonna give you up..."
+                toolCallError:
+                  summary: tools/call error (invalid video)
+                  value:
+                    jsonrpc: "2.0"
+                    id: 3
+                    result:
+                      isError: true
+                      content:
+                        - type: text
+                          text: "Video is unavailable: dQw4w9WgXcQ"
+
+components:
+  schemas:
+    TranscriptResponse:
+      type: object
+      required: [videoUrl, title, description, metadata, text]
+      properties:
+        videoUrl:
+          type: string
+          description: The YouTube URL or video ID that was passed in
+        title:
+          type: string
+          description: Video title
+        description:
+          type: string
+          description: Video description
+        metadata:
+          type: object
+          description: Miscellaneous video metadata (thumbnails, author, etc.)
+        text:
+          type: string
+          description: Transcript content in the requested format
+
+    TextOnlyTranscriptResponse:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: Transcript content in the requested format
+
+    HealthResponse:
+      type: object
+      required: [status, version]
+      properties:
+        status:
+          type: string
+          enum: ["ok"]
+        version:
+          type: string
+          description: Server version
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+
+    JsonRpcRequest:
+      type: object
+      required: [jsonrpc, method]
+      properties:
+        jsonrpc:
+          type: string
+          enum: ["2.0"]
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+        method:
+          type: string
+
+    ToolsListRequest:
+      allOf:
+        - $ref: "#/components/schemas/JsonRpcRequest"
+        - type: object
+          properties:
+            method:
+              type: string
+              enum: [tools/list]
+            params:
+              type: object
+
+    ToolsCallRequest:
+      allOf:
+        - $ref: "#/components/schemas/JsonRpcRequest"
+        - type: object
+          required: [params]
+          properties:
+            method:
+              type: string
+              enum: [tools/call]
+            params:
+              $ref: "#/components/schemas/ToolsCallParams"
+
+    ToolsCallParams:
+      type: object
+      required: [name, arguments]
+      properties:
+        name:
+          type: string
+          enum: [youtube-transcript-extract]
+          description: Tool name
+        arguments:
+          $ref: "#/components/schemas/YoutubeTranscriptExtractArgs"
+
+    YoutubeTranscriptExtractArgs:
+      type: object
+      required: [videoUrl]
+      properties:
+        videoUrl:
+          type: string
+          description: YouTube URL or bare 11-character video ID
+          examples:
+            - "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            - "youtu.be/dQw4w9WgXcQ"
+            - "dQw4w9WgXcQ"
+        onlyText:
+          type: boolean
+          default: true
+          description: "When false, the response includes title, description, and metadata as JSON"
+        language:
+          type: string
+          default: "en"
+          description: Two-letter BCP-47 language code for the transcript
+          examples: ["en", "fr", "es", "de", "ja"]
+        textType:
+          type: string
+          enum: [text, srt, vtt]
+          default: "text"
+          description: Transcript output format
+        cache:
+          type: boolean
+          default: true
+          description: "Enable filesystem cache for transcripts (disable with false)"
+        retry:
+          type: boolean
+          default: true
+          description: "Enable automatic retries on transient failure (disable with false)"
+
+    McpResponse:
+      type: object
+      required: [jsonrpc, id]
+      properties:
+        jsonrpc:
+          type: string
+          enum: ["2.0"]
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+        result:
+          type: object
+          description: Present on success — contains the tool result or tool list
+        error:
+          type: object
+          description: Present on JSON-RPC protocol error
+          properties:
+            code:
+              type: integer
+            message:
+              type: string

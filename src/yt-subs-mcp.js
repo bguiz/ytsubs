@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 
 import pkg from '../package.json' with { type: 'json' };
@@ -79,37 +78,13 @@ export async function runWithStdio() {
   await server.connect(transport);
 }
 
-/**
- * Starts the MCP server using the Streamable HTTP transport.
- * Binds to an OS-assigned port on `127.0.0.1`. Once the server is ready,
- * writes `LISTEN <port>` to stderr so that the caller can discover the port.
- * @returns {Promise<void>}
- */
-async function runWithHttp() {
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => randomUUID(),
-  });
-  await server.connect(transport);
-
-  const httpServer = createServer((req, res) => {
-    transport.handleRequest(req, res);
-  });
-
-  await new Promise((resolve, reject) => {
-    httpServer.on('error', reject);
-    httpServer.listen(0, '127.0.0.1', () => {
-      const { port } = httpServer.address();
-      process.stderr.write(`LISTEN ${port}\n`);
-      resolve();
-    });
-  });
-}
-
-if (transportArg === 'stdio') {
-  runWithStdio().catch(console.error);
-} else if (transportArg === 'http') {
-  runWithHttp().catch(console.error);
-} else {
-  process.exitCode = 1;
-  console.error(`Error: invalid transport "${transportArg}": expected "stdio" or "http"`);
+if (realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv[2] === 'http') {
+    process.stderr.write(
+      'Error: HTTP server has moved. Use: node src/yt-subs-server.js (or npm run api:http)\n',
+    );
+    process.exitCode = 1;
+  } else {
+    runWithStdio().catch(console.error);
+  }
 }
