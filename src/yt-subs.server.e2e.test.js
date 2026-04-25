@@ -112,9 +112,7 @@ describe('ytsubs-server e2e (REST)', () => {
   });
 
   it('GET /transcript?textType=srt returns SRT-formatted text', { timeout: 30_000 }, async () => {
-    const res = await fetch(
-      `${baseUrl}/transcript?videoUrl=${encodeURIComponent(VIDEO_URL)}&textType=srt`,
-    );
+    const res = await fetch(`${baseUrl}/transcript?videoUrl=${encodeURIComponent(VIDEO_URL)}&textType=srt`);
     assert.equal(res.status, 200);
     const data = await res.json();
     assert.match(data.text, /^\d+\n\d{2}:\d{2}:\d{2},\d{3} --> /);

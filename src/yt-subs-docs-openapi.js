@@ -71,7 +71,12 @@ const MCP_CLIENT_INIT_PARAMS = {
   capabilities: {},
 };
 
-async function fileExists(path) {
+/**
+ * Returns true if the file at `path` is accessible, false otherwise.
+ * @param {string} path Absolute path to check.
+ * @returns {Promise<boolean>} True when accessible, false when not found or inaccessible.
+ */
+export async function fileExists(path) {
   try {
     await access(path);
     return true;
@@ -80,12 +85,22 @@ async function fileExists(path) {
   }
 }
 
-async function downloadFile(url, dest) {
+/**
+ * Fetches `url` and writes the response body to `dest`.
+ * @param {string} url Remote URL to download.
+ * @param {string} dest Absolute path to write the downloaded bytes to.
+ * @returns {Promise<void>} Resolves when the file has been written.
+ */
+export async function downloadFile(url, dest) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to download ${url}: ${res.status} ${res.statusText}`);
   await writeFile(dest, Buffer.from(await res.arrayBuffer()));
 }
 
+/**
+ * Downloads Swagger UI assets into dist/docs-openapi/ if they are not already present.
+ * @returns {Promise<void>} Resolves when all required assets are on disk.
+ */
 async function ensureDistFiles() {
   await mkdir(DIST_DIR, { recursive: true });
   for (const file of DIST_FILES) {
@@ -97,6 +112,12 @@ async function ensureDistFiles() {
   }
 }
 
+/**
+ * Builds the HTTP headers object required for MCP JSON-RPC requests.
+ * @param {string|null} sessionId Active MCP session ID, or null before the session is established.
+ * @param {string} [contentType] Overrides the default `application/json` Content-Type.
+ * @returns {Record<string, string>} Headers object ready to pass to `fetch`.
+ */
 export function mcpHeaders(sessionId, contentType) {
   const h = {
     'Content-Type': contentType ?? 'application/json',
@@ -106,6 +127,12 @@ export function mcpHeaders(sessionId, contentType) {
   return h;
 }
 
+/**
+ * Reads a `text/event-stream` response body and returns the JSON string from the last `data:` line.
+ * Falls back to `'{}'` when no `data:` lines are present.
+ * @param {object} res Fetch response carrying a text/event-stream body.
+ * @returns {Promise<string>} Raw JSON string extracted from the SSE payload.
+ */
 export async function sseToJson(res) {
   const text = await res.text();
   return (
@@ -121,6 +148,11 @@ export async function sseToJson(res) {
 // null means uninitialized; set to a session ID string after handshake.
 let mcpSessionId = null;
 
+/**
+ * Sends `initialize` then `notifications/initialized` to the upstream MCP server and stores
+ * the returned session ID in the module-level `mcpSessionId` variable.
+ * @returns {Promise<void>} Resolves once the session handshake is complete.
+ */
 async function initMcpSession() {
   const mcpUrl = `http://127.0.0.1:${SERVER_PORT}/mcp`;
 
@@ -150,6 +182,13 @@ async function initMcpSession() {
   mcpSessionId = sessionId;
 }
 
+/**
+ * Forwards the request body to the upstream MCP server, managing session lifecycle
+ * automatically: lazy init on first call, one automatic retry on session expiry (400).
+ * @param {import('node:http').IncomingMessage} req Incoming HTTP request from the docs server.
+ * @param {import('node:http').ServerResponse} res HTTP response to write the proxied result to.
+ * @returns {Promise<void>} Resolves once the proxied response has been written.
+ */
 async function proxyMcp(req, res) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
@@ -213,7 +252,15 @@ async function proxyMcp(req, res) {
   }
 }
 
-async function serve(req, res) {
+/**
+ * HTTP request handler for the docs server.
+ * Routes: `/` and `/index.html` → Swagger UI HTML; `/openapi.yaml` → spec file;
+ * `POST /mcp` → MCP proxy; `/swagger-ui-bundle.js` and `/swagger-ui.css` → static assets.
+ * @param {import('node:http').IncomingMessage} req Incoming HTTP request.
+ * @param {import('node:http').ServerResponse} res HTTP response to write to.
+ * @returns {Promise<void>} Resolves once the response has been written.
+ */
+export async function serve(req, res) {
   const pathname = new URL(req.url, `http://localhost:${PORT}`).pathname;
 
   try {
@@ -251,6 +298,13 @@ async function serve(req, res) {
     res.writeHead(500, { 'Content-Type': 'text/plain' });
     res.end(`Internal Server Error: ${err.message}`);
   }
+}
+
+/**
+ * Resets the cached MCP session ID to `null`. Exported for unit-test isolation only.
+ */
+export function _resetMcpSessionForTest() {
+  mcpSessionId = null;
 }
 
 // Only start the server when this file is executed directly (not imported).

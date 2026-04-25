@@ -80,9 +80,7 @@ export async function runWithStdio() {
 
 if (realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv[2] === 'http') {
-    process.stderr.write(
-      'Error: HTTP server has moved. Use: node src/yt-subs-server.js (or npm run api:http)\n',
-    );
+    process.stderr.write('Error: HTTP server has moved. Use: node src/yt-subs-server.js (or npm run api:http)\n');
     process.exitCode = 1;
   } else {
     runWithStdio().catch(console.error);

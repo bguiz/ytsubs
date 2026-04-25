@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createServer } from 'node:http';
+import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +19,11 @@ const TranscriptQuerySchema = z.object({
   onlyText: z.preprocess((v) => v === 'true', z.boolean()),
 });
 
+/**
+ * Maps a known error message prefix to the appropriate HTTP status code.
+ * @param {string} msg Error message returned by the SDK.
+ * @returns {number} HTTP status code (400, 404, 422, 503, or 504).
+ */
 function errToStatus(msg) {
   if (msg.startsWith('video URL is missing') || msg.startsWith('video URL is invalid')) return 400;
   if (
@@ -32,11 +37,23 @@ function errToStatus(msg) {
   return 503;
 }
 
+/**
+ * Writes a JSON-encoded `body` with the given `status` code to `res`.
+ * @param {ServerResponse} res HTTP response to write to.
+ * @param {number} status HTTP status code.
+ * @param {object} body Response payload to JSON-encode.
+ */
 function jsonResponse(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(body));
 }
 
+/**
+ * Handles GET /transcript: validates query params, extracts the transcript, and writes a JSON response.
+ * @param {IncomingMessage} req Incoming HTTP request carrying query parameters.
+ * @param {ServerResponse} res HTTP response to write the transcript result to.
+ * @returns {Promise<void>} Resolves once the response has been written.
+ */
 async function handleTranscript(req, res) {
   const { searchParams } = new URL(req.url, `http://localhost`);
   const raw = Object.fromEntries(searchParams.entries());
@@ -65,10 +82,19 @@ async function handleTranscript(req, res) {
   });
 }
 
-function handleHealth(req, res) {
+/**
+ * Handles GET /health: responds with `{ status: 'ok', version }`.
+ * @param {IncomingMessage} _req Unused incoming request.
+ * @param {ServerResponse} res HTTP response to write to.
+ */
+function handleHealth(_req, res) {
   jsonResponse(res, 200, { status: 'ok', version: pkg.version });
 }
 
+/**
+ * Sets permissive CORS headers on `res` for cross-origin browser access.
+ * @param {ServerResponse} res HTTP response to attach CORS headers to.
+ */
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
