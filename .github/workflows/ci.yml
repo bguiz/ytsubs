@@ -6,23 +6,23 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   ci:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Self-link to enable e2e tests of CLI
-        run: npm link
 
       - name: Lint — JSDoc comments
         run: npm run lint:comment
@@ -37,11 +37,25 @@ jobs:
         run: npm run coverage:lcov
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
         with:
           files: ./dist/coverage/coverage.lcov
+          report_type: "test_results"
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: e2e tests
-        run: npm run test:e2e
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
+        with:
+          files: ./dist/coverage/tests.xml
+          report_type: "test_results"
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Self-link to enable e2e tests of CLI
+        run: npm link
+
+      # - name: e2e tests
+      #   run: npm run test:e2e

@@ -1,6 +1,6 @@
 {
   "name": "ytsubs",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "downloads transcript files from youtube videos",
   "type": "module",
   "engines": {
@@ -60,7 +60,7 @@
     "lint:code": "biome lint .",
     "format:check": "biome format .",
     "format:write": "biome format --write .",
-    "coverage:lcov": "mkdir -p dist/coverage && node --test --experimental-test-coverage --test-coverage-include=\"src/yt-subs-*.js\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=dist/coverage/coverage.lcov src/yt-subs.*.unit.test.js",
+    "coverage:lcov": "mkdir -p dist/coverage && node --test --experimental-test-coverage --test-coverage-include=\"src/yt-subs-*.js\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=dist/coverage/tests.xml --test-reporter=lcov --test-reporter-destination=dist/coverage/coverage.lcov src/yt-subs.*.unit.test.js",
     "check:prepush": "npm run lint:comment && npm run lint:code && npm run format:check && npm run coverage",
     "list-files": "npm pack && tar -xvzf *.tgz && rm -rf package *.tgz",
     "prepare": "husky"
