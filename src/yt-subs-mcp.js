@@ -30,6 +30,10 @@ server.registerTool(
         .boolean()
         .default(true)
         .meta({ description: 'Enable automatic retries on transient failure; set false to disable' }),
+      method: z
+        .enum(['plus', 'dlp'])
+        .default('plus')
+        .meta({ description: 'Transcript backend: "plus" (youtube-transcript-plus) or "dlp" (yt-dlp CLI)' }),
     }),
     annotations: {
       readOnlyHint: true,
@@ -38,10 +42,10 @@ server.registerTool(
       openWorldHint: true,
     },
   },
-  async ({ videoUrl, onlyText, language, textType, cache, retry }) => {
+  async ({ videoUrl, onlyText, language, textType, cache, retry, method }) => {
     const result = await extractFromVideo({
       videoUrl,
-      options: { language, textType, cache, retry },
+      options: { language, textType, cache, retry, method },
     });
     if (result.err) {
       return {

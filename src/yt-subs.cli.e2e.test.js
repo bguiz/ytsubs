@@ -29,10 +29,11 @@ describe('ytsubs e2e programmatic invocation', () => {
   });
 });
 
-describe('ytsubs e2e CLI invocation', () => {
+describe('ytsubs e2e CLI invocation with plus method', () => {
   it('prints markdown transcript output when invoked on the command line', { timeout: 30000 }, async () => {
     let stdout;
     try {
+      // plus method is default
       ({ stdout } = await execAsync(`ytsubs "${VIDEO_URL}"`));
     } catch (err) {
       if (err.code === 127) {
@@ -46,5 +47,28 @@ describe('ytsubs e2e CLI invocation', () => {
     assert.ok(stdout.includes('## Description'));
     assert.ok(stdout.includes('## Text'));
     assert.ok(stdout.includes(VIDEO_ID));
+  });
+});
+
+describe('ytsubs e2e CLI invocation with dlp method', () => {
+  const VIDEO_URL_2 = 'https://www.youtube.com/watch?v=yZNkGqRLrPw';
+  const VIDEO_ID_2 = 'yZNkGqRLrPw';
+  it('prints markdown transcript output when invoked on the command line', { timeout: 30000 }, async () => {
+    let stdout;
+    try {
+      // dlp method needs to be specified
+      ({ stdout } = await execAsync(`ytsubs --method dlp "${VIDEO_URL_2}"`));
+    } catch (err) {
+      if (err.code === 127) {
+        assert.fail('ytsubs not found on PATH — run in the project directory: npm link');
+      }
+      throw err;
+    }
+
+    assert.match(stdout, /^# .+/m);
+    assert.ok(stdout.includes('## Metadata'));
+    assert.ok(stdout.includes('## Description'));
+    assert.ok(stdout.includes('## Text'));
+    assert.ok(stdout.includes(VIDEO_ID_2));
   });
 });

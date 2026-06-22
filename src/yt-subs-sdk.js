@@ -1,18 +1,10 @@
 import { homedir as osHomeDir } from 'node:os';
 import { resolve as pathResolve } from 'node:path';
 
-import {
-  fetchTranscript,
-  toPlainText,
-  toSRT,
-  toVTT,
-  FsCache,
-  YoutubeTranscriptVideoUnavailableError,
-  YoutubeTranscriptDisabledError,
-  YoutubeTranscriptNotAvailableError,
-  YoutubeTranscriptNotAvailableLanguageError,
-  YoutubeTranscriptInvalidLangError,
-} from 'youtube-transcript-plus';
+import { toPlainText, toSRT, toVTT } from 'youtube-transcript-plus';
+
+import { extractFromVideo_plus } from './yt-subs-sdk-plus.js';
+import { fetchTranscriptDlp, FsCacheDlp } from './yt-subs-sdk-dlp.js';
 
 /**
  * @typedef {object} ExtractOptions
@@ -21,6 +13,7 @@ import {
  * @property {string} [language] - Two-letter BCP-47 language code; default 'en'.
  * @property {'text'|'srt'|'vtt'} [textType] - Transcript output format; default 'text'.
  * @property {number} [timeout] - Abort after this many milliseconds; no timeout by default.
+ * @property {'plus'|'dlp'} [method] - Transcript backend; default 'plus'. May also be set via `YTSUBS_METHOD`.
  */
 
 /**
@@ -39,6 +32,9 @@ import {
 
 /**
  * Extracts the transcript and metadata from a Youtube video.
+ * Dispatches to either the `youtube-transcript-plus` backend (`method: 'plus'`, default)
+ * or the `yt-dlp` CLI backend (`method: 'dlp'`). The method also resolves from the
+ * `YTSUBS_METHOD` environment variable when not explicitly set.
  * Returns `{ err }` on failure rather than throwing, so callers must check
  * `result.err` *before* accessing other fields.
  * @param {object} params - Input parameters.
@@ -48,12 +44,28 @@ import {
  * @returns {Promise<ExtractResult|ExtractError>} Resolves to either a result object or error object.
  */
 async function extractFromVideo({ videoUrl, options = {}, _deps = {} }) {
+  const method = options.method || process.env.YTSUBS_METHOD || 'plus';
+  if (method === 'dlp') {
+    return extractFromVideo_dlp({ videoUrl, options, _deps });
+  }
+  return extractFromVideo_plus({ videoUrl, options, _deps });
+}
+
+/**
+ * `yt-dlp`-backed implementation. Not intended to be called directly —
+ * use {@link extractFromVideo} with `options.method = 'dlp'`.
+ * Requires `yt-dlp` to be installed and discoverable on `PATH`
+ * (override via `YTSUBS_YT_DLP_BIN`).
+ * @param {{videoUrl: string, options?: ExtractOptions, _deps?: object}} params Parameters.
+ * @returns {Promise<ExtractResult|ExtractError>} Result object on success, or `{ err }` on failure.
+ */
+async function extractFromVideo_dlp({ videoUrl, options = {}, _deps = {} }) {
   const {
-    fetchTranscript: _fetchTranscript = fetchTranscript,
+    fetchTranscriptDlp: _fetchTranscriptDlp = fetchTranscriptDlp,
     toPlainText: _toPlainText = toPlainText,
     toSRT: _toSRT = toSRT,
     toVTT: _toVTT = toVTT,
-    FsCache: _FsCache = FsCache,
+    FsCache: _FsCache = FsCacheDlp,
   } = _deps;
 
   let videoId;
@@ -73,7 +85,6 @@ async function extractFromVideo({ videoUrl, options = {}, _deps = {} }) {
   let retries = 0;
   let retryDelay = 0;
   if (options.retry !== false) {
-    // retry up to 3 times, at 15s, 30s, 60s
     retries = 3;
     retryDelay = 15e3;
   }
@@ -84,10 +95,9 @@ async function extractFromVideo({ videoUrl, options = {}, _deps = {} }) {
   let err;
 
   try {
-    const fetchPromise = _fetchTranscript(videoId, {
+    const fetchPromise = _fetchTranscriptDlp(videoId, {
       lang: options.language || 'en',
       cache: ytScriptFsCache,
-      videoDetails: true,
       retries,
       retryDelay,
       ...(controller ? { signal: controller.signal } : {}),
@@ -109,15 +119,15 @@ async function extractFromVideo({ videoUrl, options = {}, _deps = {} }) {
   } catch (error) {
     if (error.name === 'AbortError') {
       err = error.message;
-    } else if (error instanceof YoutubeTranscriptVideoUnavailableError) {
-      err = `Video is unavailable: ${error.videoId}`;
-    } else if (error instanceof YoutubeTranscriptDisabledError) {
-      err = `Transcripts are disabled: ${error.videoId}`;
-    } else if (error instanceof YoutubeTranscriptNotAvailableError) {
-      err = `No transcript available: ${error.videoId}`;
-    } else if (error instanceof YoutubeTranscriptNotAvailableLanguageError) {
+    } else if (error.code === 'VIDEO_UNAVAILABLE') {
+      err = `Video is unavailable: ${error.videoId ?? videoId}`;
+    } else if (error.code === 'TRANSCRIPTS_DISABLED') {
+      err = `Transcripts are disabled: ${error.videoId ?? videoId}`;
+    } else if (error.code === 'NO_TRANSCRIPT') {
+      err = `No transcript available: ${error.videoId ?? videoId}`;
+    } else if (error.code === 'LANG_NOT_AVAILABLE') {
       err = `Language not available: ${error.lang}, available: ${error.availableLangs}`;
-    } else if (error instanceof YoutubeTranscriptInvalidLangError) {
+    } else if (error.code === 'INVALID_LANG') {
       err = `Invalid language code: ${error.lang}`;
     } else {
       err = `An unexpected error occurred: ${error.message}`;
@@ -257,4 +267,12 @@ const ytSubSdk = {
 
 export default ytSubSdk;
 
-export { extractFromVideo, outputTextOnly, outputAsMarkdown, extractVideoId, printResult };
+export {
+  extractFromVideo,
+  extractFromVideo_plus,
+  extractFromVideo_dlp,
+  outputTextOnly,
+  outputAsMarkdown,
+  extractVideoId,
+  printResult,
+};

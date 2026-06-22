@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
 import {
+  ensureDistFiles,
   fileExists,
   downloadFile,
   mcpHeaders,
@@ -437,6 +438,87 @@ describe('mcpHeaders', () => {
 // ---------------------------------------------------------------------------
 // sseToJson — direct unit tests
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// ensureDistFiles — dependency-injected
+// ---------------------------------------------------------------------------
+
+describe('ensureDistFiles', () => {
+  it('creates the dist dir and downloads every missing file', async () => {
+    const mkdirCalls = [];
+    const downloads = [];
+    await ensureDistFiles({
+      distDir: '/tmp/__yt-subs-ensure-test__',
+      files: ['a.js', 'b.css'],
+      _deps: {
+        mkdir: async (dir, opts) => {
+          mkdirCalls.push({ dir, opts });
+        },
+        fileExists: async () => false,
+        downloadFile: async (url, dest) => {
+          downloads.push({ url, dest });
+        },
+      },
+    });
+    assert.deepStrictEqual(mkdirCalls, [{ dir: '/tmp/__yt-subs-ensure-test__', opts: { recursive: true } }]);
+    assert.equal(downloads.length, 2);
+    assert.match(downloads[0].url, /a\.js$/);
+    assert.match(downloads[0].dest, /a\.js$/);
+    assert.match(downloads[1].url, /b\.css$/);
+  });
+
+  it('skips files that already exist on disk', async () => {
+    const downloads = [];
+    const result = await ensureDistFiles({
+      distDir: '/tmp/__yt-subs-ensure-test__',
+      files: ['present.js', 'missing.css'],
+      _deps: {
+        mkdir: async () => {},
+        fileExists: async (path) => path.endsWith('present.js'),
+        downloadFile: async (url, dest) => {
+          downloads.push({ url, dest });
+        },
+      },
+    });
+    assert.deepStrictEqual(result.downloaded, ['missing.css']);
+    assert.deepStrictEqual(result.skipped, ['present.js']);
+    assert.equal(downloads.length, 1);
+    assert.match(downloads[0].dest, /missing\.css$/);
+  });
+
+  it('returns empty download list when all files are present', async () => {
+    const result = await ensureDistFiles({
+      distDir: '/tmp/__yt-subs-ensure-test__',
+      files: ['a.js'],
+      _deps: {
+        mkdir: async () => {},
+        fileExists: async () => true,
+        downloadFile: async () => {
+          throw new Error('should not be called');
+        },
+      },
+    });
+    assert.deepStrictEqual(result.downloaded, []);
+    assert.deepStrictEqual(result.skipped, ['a.js']);
+  });
+
+  it('propagates downloadFile failures to the caller', async () => {
+    await assert.rejects(
+      ensureDistFiles({
+        distDir: '/tmp/__yt-subs-ensure-test__',
+        files: ['x.js'],
+        _deps: {
+          mkdir: async () => {},
+          fileExists: async () => false,
+          downloadFile: async () => {
+            throw new Error('CDN down');
+          },
+        },
+      }),
+      /CDN down/,
+    );
+  });
+});
 
 describe('sseToJson', () => {
   it('extracts JSON from the last data: line', async () => {

@@ -17,6 +17,7 @@ const TranscriptQuerySchema = z.object({
   cache: z.preprocess((v) => typeof v === 'undefined' || v !== 'false', z.boolean()),
   retry: z.preprocess((v) => typeof v === 'undefined' || v !== 'false', z.boolean()),
   onlyText: z.preprocess((v) => v === 'true', z.boolean()),
+  method: z.enum(['plus', 'dlp']).default('plus'),
 });
 
 /**
@@ -63,8 +64,8 @@ async function handleTranscript(req, res) {
     return jsonResponse(res, 400, { error: parsed.error.issues.map((i) => i.message).join('; ') });
   }
 
-  const { videoUrl, language, textType, cache, retry, onlyText } = parsed.data;
-  const result = await extractFromVideo({ videoUrl, options: { language, textType, cache, retry } });
+  const { videoUrl, language, textType, cache, retry, onlyText, method } = parsed.data;
+  const result = await extractFromVideo({ videoUrl, options: { language, textType, cache, retry, method } });
 
   if (result.err) {
     return jsonResponse(res, errToStatus(result.err), { error: result.err });

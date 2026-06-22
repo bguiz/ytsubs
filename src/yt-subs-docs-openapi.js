@@ -98,18 +98,34 @@ export async function downloadFile(url, dest) {
 }
 
 /**
- * Downloads Swagger UI assets into dist/docs-openapi/ if they are not already present.
- * @returns {Promise<void>} Resolves when all required assets are on disk.
+ * Downloads Swagger UI assets into `distDir` if they are not already present.
+ * @param {object} [opts] Optional overrides.
+ * @param {string} [opts.distDir] Destination directory; defaults to `DIST_DIR`.
+ * @param {string[]} [opts.files] Files to ensure; defaults to `DIST_FILES`.
+ * @param {object} [opts._deps] For unit testing only — do not pass in production code.
+ * @returns {Promise<{downloaded: string[], skipped: string[]}>} Lists of newly-downloaded and already-present files.
  */
-async function ensureDistFiles() {
-  await mkdir(DIST_DIR, { recursive: true });
-  for (const file of DIST_FILES) {
-    const dest = join(DIST_DIR, file);
-    if (!(await fileExists(dest))) {
-      process.stdout.write(`Downloading ${file}...\n`);
-      await downloadFile(`${SWAGGER_CDN}/${file}`, dest);
+export async function ensureDistFiles({ distDir = DIST_DIR, files = DIST_FILES, _deps = {} } = {}) {
+  const {
+    mkdir: _mkdir = mkdir,
+    fileExists: _fileExists = fileExists,
+    downloadFile: _downloadFile = downloadFile,
+  } = _deps;
+
+  await _mkdir(distDir, { recursive: true });
+  const downloaded = [];
+  const skipped = [];
+  for (const file of files) {
+    const dest = join(distDir, file);
+    if (await _fileExists(dest)) {
+      skipped.push(file);
+      continue;
     }
+    process.stdout.write(`Downloading ${file}...\n`);
+    await _downloadFile(`${SWAGGER_CDN}/${file}`, dest);
+    downloaded.push(file);
   }
+  return { downloaded, skipped };
 }
 
 /**
