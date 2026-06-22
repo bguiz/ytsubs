@@ -1,6 +1,6 @@
 {
   "name": "ytsubs",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "downloads transcript files from youtube videos",
   "type": "module",
   "engines": {
@@ -22,6 +22,8 @@
   },
   "files": [
     "/src/yt-subs-sdk.js",
+    "/src/yt-subs-sdk-plus.js",
+    "/src/yt-subs-sdk-dlp.js",
     "/src/yt-subs-cli.js",
     "/src/yt-subs-mcp.js",
     "/src/yt-subs-server.js",
