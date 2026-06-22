@@ -25,11 +25,12 @@ npx -y ytsubs "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 npx -y ytsubs "youtu.be/dQw4w9WgXcQ"
 
-npx -y ytsubs dQw4w9WgXcQ
+npx -y ytsubs --method dlp dQw4w9WgXcQ
 ```
 
-There aren't any options, just one CLI argument to identify which video.
 If you would like to specify options, use the SDK programmatically instead.
+
+Use `--method dlp` CLI flag to use `yt-dlp` if you have that installed.
 
 ### SDK usage
 
@@ -53,6 +54,7 @@ Optionally, create an options object to override defaults:
 
 ```js
 const options = {
+    method: 'dlp',   // default: 'plus' - which subtitle extraction method to use. can be 'plus', or 'dlp'
     cache: false,    // default: true  - caches responses in `.yt-subs-cache` under home directory
     retry: false,    // default: true  - retries with exponential backoff on transient failure
     language: 'es',  // default: 'en'  - any two-letter BCP-47 language code
@@ -114,7 +116,9 @@ download subtitles of youtu.be/dQw4w9WgXcQ and save to subtitles.txt
 ```
 
 Read the skill file to see how it works:
-[`./.agents/skills/youtube-transcript-extract/SKILL.md`](.agents/skills/youtube-transcript-extract/SKILL.md)
+[`./.agents/skills/youtube-transcript-extract/SKILL.md`](https://github.com/bguiz/ytsubs/blob/main/.agents/skills/youtube-transcript-extract/SKILL.md)
+
+Note that the skill will automatically detect `yt-dlp` and use it if available.
 
 ### MCP server usage
 
@@ -354,6 +358,10 @@ based on the branch that you have just pushed.
 When you `git push` your branch associated with a PR,
 this project will kick off a Github CI workflow,
 which you can find in [`.github/workflows/ci.yml`](./.github/workflows/ci.yml).
+
+### Changelog
+
+See [`./CHANGELOG.md`](./CHANGELOG.md)
 
 ### Submitting a request
 
