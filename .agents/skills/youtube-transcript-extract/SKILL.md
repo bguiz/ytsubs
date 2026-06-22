@@ -32,15 +32,22 @@ Tip: This skill is best used when combined with other skills, e.g. summaries.
 
 Perform the following steps in sequence.
 
+### 0 - Prepare
+
+Run this command: `yt-dlp --version`
+Expected output: Date `YYYY.MM.DD` as version.
+
+- If: Error "command not found" -> METHOD="plus"
+- If: version is older than !`date "+%Y.%m"` minus 2 months -> Warn the user "Old version of yt-dlp detected, pls update" -> METHOD="dlp"
+- Otherwise -> METHOD="dlp"
+
 ### 1 - Extract
 
 Run the following command:
 
-```
-npx -y ytsubs "(... URL or ID)"
-```
+`npx -y ytsubs --method ${METHOD} "(... URL or ID)"`
 
-Important: Place quotes around the video URL or ID, to handle special characters.
+Important: Video URL must be quoted
 
 This utility will output text containing the following data from the video:
 - title
@@ -62,4 +69,5 @@ Nil
 
 ## Prerequisites
 
-Node.JS 22+ installed
+- Node.JS 22+ installed
+- `yt-dlp` installed (optional, but preferred)
