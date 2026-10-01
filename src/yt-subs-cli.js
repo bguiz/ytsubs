@@ -19,6 +19,7 @@ import { extractFromVideo, printResult } from './yt-subs-sdk.js';
 async function ytSubsCli(input) {
   let videoUrl;
   let cliMethod;
+  let cliTextType;
 
   if (input) {
     videoUrl = input;
@@ -27,18 +28,24 @@ async function ytSubsCli(input) {
       args: process.argv.slice(2),
       options: {
         method: { type: 'string', short: 'm' },
+        'text-type': { type: 'string', short: 't' },
       },
       allowPositionals: true,
     });
     videoUrl = positionals[0];
     cliMethod = values.method;
+    cliTextType = values['text-type'];
   }
 
   const method = cliMethod || process.env.YTSUBS_METHOD || 'plus';
+  const textType = cliTextType || process.env.YTSUBS_TEXT_TYPE || 'text';
 
   const result = await extractFromVideo({
     videoUrl,
-    options: { method },
+    options: {
+      method,
+      textType,
+    },
   });
   if (result.err) {
     throw new Error(result.err);
